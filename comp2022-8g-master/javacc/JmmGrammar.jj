@@ -1,0 +1,218 @@
+PARSER_PACKAGE=pt.up.fe.comp;
+PARSER_CLASS=JmmGrammarParser;
+SMART_NODE_CREATION=false;
+TOKENS_ARE_NODES=false;
+
+SKIP : " " | "\t" | "\r" | "\n" ;
+
+SPECIAL_TOKEN:
+   < COMMENT : "//" (~["\n"])* ("\n") > |
+   < MLCOMMENT: ("/*"|"/*/") ( ~["/"] | (~["*"]"/") )* "*/" >
+;
+
+TOKEN :
+   < AND : "&&" > |
+   < LESS_THAN : "<" > |
+   < PLUS : "+" > |
+   < MINUS : "-" > |
+   < TIMES : "*" > |
+   < DIVIDE : "/" > |
+
+   < OPEN_PAREN : "(" > |
+   < CLOSE_PAREN : ")" > |
+   < OPEN_CURLY_BRAC : "{" > |
+   < CLOSE_CURLY_BRAC : "}" > |
+   < OPEN_BRAC : "[" > |
+   < CLOSE_BRAC : "]" > |
+   < EQUALS : "=" > |
+
+   < TRUE : "true"> |
+   < FALSE : "false"> |
+   < THIS : "this"> |
+   < NEW : "new"> |
+   < EXCLAMATION : "!"> |
+
+   < IF : "if" > |
+   < ELSE : "else" > |
+   < WHILE : "while" > |
+   < LENGTH : "length" > |
+   < COMMA : "," > |
+   < END_EXP : ";" > |
+   < DOT : "." > |
+
+   < IMPORT: "import" > |
+   < CLASS: "class" > |
+   < EXTENDS : "extends" > |
+
+   < INTEGER : (["0" - "9"])+ > |
+   < INT : "int" > |
+   < BOOLEAN : "boolean" > |
+   < STATIC : "static"> |
+   < VOID : "void" > |
+   < STRING : "String" > |
+   < PUBLIC : "public" > |
+   < RETURN_TOKEN : "return" > |
+   < MAIN : "main"> |
+    < IDENTIFIER : (["a" - "z"]|["A" - "Z"]|["_"]|["$"]) (["a" - "z"]|["A" - "Z"]|["_"]|["$"]|["0"-"9"])* >
+;
+
+Start :
+   Program <EOF>
+;
+
+Program :
+   (ImportDeclaration)* ClassDeclaration <EOF>
+;
+
+ImportDeclaration :
+   (<IMPORT>  <IDENTIFIER> { jjtThis.put("importName", lastConsumedToken.getImage ()); }) #_Identifier(true)
+   (<DOT> ((<IDENTIFIER>) { jjtThis.put("importName", lastConsumedToken.getImage ()); } ) #_Identifier(true) )* <END_EXP>
+;
+
+ClassDeclaration :
+   <CLASS> <IDENTIFIER> { jjtThis.put("className", lastConsumedToken.getImage()); }
+   [(<EXTENDS> <IDENTIFIER> { jjtThis.put("extendedClassName", lastConsumedToken.getImage()); } )]
+   <OPEN_CURLY_BRAC> (ClassField)* (MethodDeclaration)* <CLOSE_CURLY_BRAC>
+
+;
+
+ClassField:
+   SCAN 2(Type <IDENTIFIER> { jjtThis.put("name", lastConsumedToken.getImage()); }) <END_EXP>
+;
+
+MethodDeclaration :
+   SCAN 2((<PUBLIC> { jjtThis.put("static", "false"); } Type <IDENTIFIER> { jjtThis.put("methodName", lastConsumedToken.getImage()); })
+      <OPEN_PAREN> [Param2 (<COMMA> Param3)*] <CLOSE_PAREN>
+      <OPEN_CURLY_BRAC> (VarDecl)* (Statement)* Return <END_EXP> <CLOSE_CURLY_BRAC>) |
+
+   <PUBLIC> <STATIC>{ jjtThis.put("static", "true"); } TypeVoid <MAIN>{ jjtThis.put("methodName", "main"); } <OPEN_PAREN> Param <CLOSE_PAREN> <OPEN_CURLY_BRAC> (VarDecl)* (Statement)* [Return <END_EXP>] <CLOSE_CURLY_BRAC>
+;
+
+Return:
+   <RETURN_TOKEN> Expr1
+;
+
+TypeVoid #Type:
+   <VOID> { jjtThis.put("type", "void"); } { jjtThis.put("isArray", "false"); }
+;
+
+Param:
+   TypeStr <IDENTIFIER>{ jjtThis.put("name", lastConsumedToken.getImage());}
+;
+TypeStr #Type:
+   <STRING> <OPEN_BRAC> <CLOSE_BRAC>{ jjtThis.put("type", "String"); }{ jjtThis.put("isArray", "true"); }
+;
+Param2 #Param:
+   (Type <IDENTIFIER> { jjtThis.put("name", lastConsumedToken.getImage()); })
+;
+
+Param3 #Param:
+   Type <IDENTIFIER>{ jjtThis.put("name", lastConsumedToken.getImage()); }
+;
+
+VarDecl:
+   SCAN 2(Type <IDENTIFIER> { jjtThis.put("name", lastConsumedToken.getImage()); }) <END_EXP>
+;
+
+Type:
+   SCAN 2(<INT> <OPEN_BRAC> <CLOSE_BRAC> ){ jjtThis.put("type", "int");} { jjtThis.put("isArray", "true");} |
+   (<BOOLEAN> ) { jjtThis.put("type", "boolean");} { jjtThis.put("isArray", "false");} |
+   (<INT>) { jjtThis.put("type", "int");} { jjtThis.put("isArray", "false");} |
+   (<STRING>) { jjtThis.put("type", "String");} { jjtThis.put("isArray", "false");} |
+   (<IDENTIFIER> { jjtThis.put("type", lastConsumedToken.getImage ()); }) { jjtThis.put("isArray", "false");}
+;
+
+Statement :
+   (<OPEN_CURLY_BRAC> (Statement)* <CLOSE_CURLY_BRAC>) #_Scope(true) |
+   (<IF> <OPEN_PAREN> Expr1 <CLOSE_PAREN> Statement <ELSE> Statement) #_ConditionalStatement(true)|
+   (<WHILE> <OPEN_PAREN> Expr1 <CLOSE_PAREN> Statement) #_WhileStatement(true) |
+   SCAN 2(Value_Id <EQUALS> Expr1 <END_EXP>) #_AssignmentStatement(true) |
+   SCAN 2(<IDENTIFIER> { jjtThis.put("name", lastConsumedToken.getImage ()); } <OPEN_BRAC> ArrayIndex <CLOSE_BRAC> <EQUALS> Expr <END_EXP>)  #_ArrayAssignment(true) |
+   Expr <END_EXP>
+;
+
+
+
+Expr :
+    Logical_And_Expr
+;
+
+Expr1 #void:
+   Logical_And_Expr
+;
+
+Logical_And_Expr #void:
+   Less_Than_Expr((<AND> ({ jjtThis.put("op", lastConsumedToken.getImage ()); }) Less_Than_Expr )#BinOpBoolAnd(2))*
+;
+
+Less_Than_Expr #void:
+   AdditiveExpr ( (<LESS_THAN> ({ jjtThis.put("op", lastConsumedToken.getImage ()); }) AdditiveExpr )#BinOpBoolLessThan(2))*
+;
+
+AdditiveExpr #void:
+    MultiplicativeExpr (( (<PLUS>| <MINUS> ) ({ jjtThis.put("op", lastConsumedToken.getImage ()); }) MultiplicativeExpr )#BinOpInt(2))*
+;
+
+MultiplicativeExpr #void:
+   Value (((<TIMES> | <DIVIDE>)  ({ jjtThis.put("op", lastConsumedToken.getImage ()); }) Value ) #BinOpInt(2))*
+;
+
+
+Value :
+    ExprTerminal [Continuation]
+;
+
+Value_Id #Value:
+    <IDENTIFIER> ({ jjtThis.put("name", lastConsumedToken.getImage ()); }) #_Identifier
+;
+Continuation #void:
+
+   <OPEN_BRAC> ArrayIndex <CLOSE_BRAC> #OpenCloseBrac(1)|
+   SCAN 2(<DOT> <LENGTH>) #Dot_length |
+   (<DOT> (<IDENTIFIER> { jjtThis.put("name", lastConsumedToken.getImage ()); }) <OPEN_PAREN> [Expr1 (<COMMA> Expr1)*] <CLOSE_PAREN>) #function_call |
+    Expr1
+;
+
+
+ExprTerminal #void:
+    <INTEGER> ({ jjtThis.put("int", lastConsumedToken.getImage ()); }) #IntegerLiteral|
+   <IDENTIFIER> ({ jjtThis.put("name", lastConsumedToken.getImage ()); }) #_Identifier |
+   <TRUE> #_True|
+   <FALSE> #_False|
+   <THIS> #_This|
+   SCAN 2(<NEW> <INT> <OPEN_BRAC> ArrayIndex <CLOSE_BRAC>) #_NewArray |
+   (<NEW> <IDENTIFIER> ({ jjtThis.put("name", lastConsumedToken.getImage ()); })  <OPEN_PAREN> <CLOSE_PAREN>) #_NewObject|
+   (<EXCLAMATION> ({ jjtThis.put("op", "!"); }) Expr1) #_Exclamation(1) |
+    (<OPEN_PAREN>  ({ jjtThis.put("op", "()"); }) Expr1 <CLOSE_PAREN>) #_OpenCLoseParen(1) |
+   (<OPEN_BRAC>  ({ jjtThis.put("op", "[]"); }) ArrayIndex <CLOSE_BRAC>)  #OpenCloseBrac(1)
+;
+
+
+ArrayIndex:
+   Expr1
+;
+INJECT BaseNode :
+      import pt.up.fe.comp.jmm.ast.JmmNode;
+      import pt.up.fe.comp.jmm.ast.AJmmNode;
+      import pt.up.fe.specs.util.SpecsCollections;
+      extends AJmmNode
+{
+    @Override
+    public List<JmmNode> getChildren() {
+
+        return SpecsCollections.cast(children(), JmmNode.class);
+    }
+
+    @Override
+    public void add(JmmNode child, int index) {
+
+        if (child instanceof Node) {
+
+            addChild(index, (Node) child);
+        } else {
+
+            throw new RuntimeException("Node " + child + " is not a Node.");
+        }
+
+    }
+}

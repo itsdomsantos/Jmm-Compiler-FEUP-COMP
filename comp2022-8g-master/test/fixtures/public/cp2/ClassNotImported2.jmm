@@ -1,0 +1,12 @@
+class Test {
+
+	public static void main(String[] args) {
+	
+	}
+
+	public int foo() {
+        Outro a;
+
+		return a.bar();
+	}
+}
